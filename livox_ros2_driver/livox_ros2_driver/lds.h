@@ -222,6 +222,18 @@ typedef struct {
   uint8_t line;       /**< Laser line id     */
 } LivoxPointXyzrtl;
 
+typedef struct {
+  float x;            /**< X axis, Unit:m */
+  float y;            /**< Y axis, Unit:m */
+  float z;            /**< Z axis, Unit:m */
+  float theta;        /**< Azimuth, horizontal angle in xy-plane, measured from positive x-axis counter-clockwise, Unit:rad */
+  float phi;          /**< Elevation, vertical angle in yz-plane, measured from xy-plane upwards as positive, Unit:rad */
+  float r;            /**< Range, radial distance, Unit:m */
+  float reflectivity; /**< Reflectivity   */
+  uint8_t tag;        /**< Livox point tag   */
+  uint8_t line;       /**< Laser line id     */
+} LivoxPointXyztprrtl;
+
 #pragma pack()
 
 typedef uint8_t *(*PointConvertHandler)(uint8_t *point_buf, \
