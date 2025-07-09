@@ -231,6 +231,101 @@ uint32_t Lddc::PublishPointcloud2(LidarDataQueue *queue, uint32_t packet_num,
   return published_packet;
 }
 
+uint32_t Lddc::PublishPointCloud2xyztprrtl(LidarDataQueue *queue, uint32_t packet_num,
+                                           uint8_t handle) {
+  uint64_t timestamp = 0;
+  uint64_t last_timestamp = 0;
+  uint32_t published_packet = 0;
+
+  StoragePacket storage_packet;
+  LidarDevice *lidar = &lds_->lidars_[handle];
+  if (GetPublishStartTime(lidar, queue, &last_timestamp, &storage_packet)) {
+    /* the remaning packets in queue maybe not enough after skip */
+    return 0;
+  }
+
+  sensor_msgs::msg::PointCloud2 cloud;
+  InitPointcloud2MsgHeader(cloud);
+  cloud.data.resize(packet_num * kMaxPointPerEthPacket *
+                    sizeof(LivoxPointXyztprrtl));
+  cloud.point_step = sizeof(LivoxPointXyztprrtl);
+
+  uint8_t *point_base = cloud.data.data();
+  uint8_t data_source = lidar->data_src;
+  uint32_t line_num = GetLaserLineNumber(lidar->info.type);
+  uint32_t echo_num = GetEchoNumPerPoint(lidar->raw_data_type);
+  uint32_t is_zero_packet = 0;
+  while ((published_packet < packet_num) && !QueueIsEmpty(queue)) {
+    QueuePrePop(queue, &storage_packet);
+    LivoxEthPacket *raw_packet =
+        reinterpret_cast<LivoxEthPacket *>(storage_packet.raw_data);
+    timestamp = GetStoragePacketTimestamp(&storage_packet, data_source);
+    int64_t packet_gap = timestamp - last_timestamp;
+    if ((packet_gap > lidar->packet_interval_max) &&
+        lidar->data_is_pubulished) {
+      // RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle,
+      //     packet_gap);
+      if (kSourceLvxFile != data_source) {
+        timestamp = last_timestamp + lidar->packet_interval;
+        ZeroPointDataOfStoragePacket(&storage_packet);
+        is_zero_packet = 1;
+      }
+    }
+    /** Use the first packet timestamp as pointcloud2 msg timestamp */
+    if (!published_packet) {
+      cloud.header.stamp = rclcpp::Time(timestamp);
+    }
+    uint32_t single_point_num = storage_packet.point_num * echo_num;
+
+    if (kSourceLvxFile != data_source) {
+      PointConvertHandler pf_point_convert =
+          GetConvertHandler(lidar->raw_data_type);
+      if (pf_point_convert) {
+        point_base = pf_point_convert(point_base, raw_packet,
+            lidar->extrinsic_parameter, line_num);
+      } else {
+        /** Skip the packet */
+        RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] unkown packet type[%d]", handle,
+                 raw_packet->data_type);
+        break;
+      }
+    } else {
+      point_base = LivoxPointToPxyzrtl(point_base, raw_packet,
+          lidar->extrinsic_parameter, line_num);
+    }
+
+    if (!is_zero_packet) {
+      QueuePopUpdate(queue);
+    } else {
+      is_zero_packet = 0;
+    }
+    cloud.width += single_point_num;
+    ++published_packet;
+    last_timestamp = timestamp;
+  }
+  cloud.row_step     = cloud.width * cloud.point_step;
+  cloud.is_bigendian = false;
+  cloud.is_dense     = true;
+  cloud.data.resize(cloud.row_step); /** Adjust to the real size */
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher =
+      std::dynamic_pointer_cast<rclcpp::Publisher
+      <sensor_msgs::msg::PointCloud2>>(GetCurrentPublisher(handle));
+  if (kOutputToRos == output_type_) {
+    publisher->publish(cloud);
+  } else {
+#if 0    
+    if (bag_) {
+      bag_->write(p_publisher->getTopic(), rclcpp::Time(timestamp),
+                  cloud);
+    }
+#endif    
+  }
+  if (!lidar->data_is_pubulished) {
+    lidar->data_is_pubulished = true;
+  }
+  return published_packet;
+}
+
 void Lddc::FillPointsToPclMsg(PointCloud& pcl_msg, \
     LivoxPointXyzrtl* src_point, uint32_t num) {
   LivoxPointXyzrtl* point_xyzrtl = (LivoxPointXyzrtl*)src_point;
@@ -544,6 +639,8 @@ void Lddc::PollingLidarPointCloudData(uint8_t handle, LidarDevice *lidar) {
       PublishCustomPointcloud(p_queue, onetime_publish_packets, handle);
     } else if (kPclPxyziMsg == transfer_format_) {
       PublishPointcloudData(p_queue, onetime_publish_packets, handle);
+    } else if (kPointCloud2xyztprrtlMsg == transfer_format_){
+      PublishPointCloud2xyztprrtl(p_queue, onetime_publish_packets, handle);
     }
   }
 }

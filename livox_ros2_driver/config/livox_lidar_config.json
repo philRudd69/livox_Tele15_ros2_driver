@@ -7,7 +7,8 @@
             "return_mode": 2,
             "coordinate": 1,
             "imu_rate": 0,
-            "extrinsic_parameter_source": 0
+            "extrinsic_parameter_source": 0,
+            "enable_high_sensitivity": true
         }
     ],
 	

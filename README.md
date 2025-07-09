@@ -174,6 +174,20 @@ uint8 line              # laser number in lidar
 
 &ensp;&ensp;&ensp;&ensp;Please refer to the pcl :: PointXYZI data structure in the point_types.hpp file of the PCL library.
 
+4. Livox pointcloud2 (PointXYZPTRRTL) point cloud format, as follows :
+
+```c
+float32 x               # X axis, unit:m
+float32 y               # Y axis, unit:m
+float32 z               # Z axis, unit:m
+float32 theta           # Azimuth, horizontal angle in xy-plane, measured from positive x-axis counter-clockwise, Unit:rad
+float32 phi             # Elevation, vertical angle in yz-plane, measured from xy-plane upwards as positive, Unit:rad
+float32 r               # Range, radial distance, Unit:m
+float32 intensity         # the value is reflectivity, 0.0~255.0
+uint8 tag               # livox tag
+uint8 line              # laser number in lidar
+```
+
 ## 5. Configure LiDAR parameters
 
 In the "ws_livox/src/livox_ros2_driver/launch" path, there are two json files, livox_hub_config.json and livox_lidar_config.json.

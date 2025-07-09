@@ -52,6 +52,7 @@ typedef enum {
   kLivoxCustomMsg = 1,
   kPclPxyziMsg = 2,
   kLivoxImuMsg = 3,
+  kPointCloud2xyztprrtlMsg = 4,
 } MessageTypeOfTransfer;
 
 class Lddc {

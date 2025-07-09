@@ -19,6 +19,7 @@ livox_ros_driver
 │   ├── msg
 │   │   ├── CustomMsg.msg
 │   │   └── CustomPoint.msg
+|   |   └── SphericalAndCartesianPoint.msg
 │   └── package.xml
 └── README.md
 

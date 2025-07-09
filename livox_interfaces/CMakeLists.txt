@@ -23,6 +23,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/CustomPoint.msg"
+  "msg/SphericalAndCartesianPoint.msg"
   "msg/CustomMsg.msg"
   DEPENDENCIES builtin_interfaces std_msgs
  )
