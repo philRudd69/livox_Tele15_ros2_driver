@@ -61,6 +61,12 @@ namespace livox_ros
 LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
 : Node("livox_driver_node", node_options)
 {
+  rcutils_ret_t set_log_ret = rcutils_logging_set_logger_level(this->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
+  if(set_log_ret != RCUTILS_RET_OK){
+    RCLCPP_ERROR(this->get_logger(), "Error Setting severity: %s", rcutils_get_error_string().str);
+    rcutils_reset_error();
+    printf("Failed to set logger level");
+  }
   RCLCPP_INFO(this->get_logger(), "Livox Ros Driver Version: %s",
     LIVOX_ROS_DRIVER_VERSION_STRING);
 
@@ -78,7 +84,7 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
   }
 
   /** Init default system parameter */
-  int xfer_format = kPointCloud2Msg;
+  int xfer_format = kPointCloud2XyzrtlMsg;
   int multi_topic = 0;
   int data_src = kSourceRawLidar;
   double publish_freq = 10.0; /* Hz */

@@ -70,6 +70,7 @@ const int kBdCodeSize = 15;
 
 const uint32_t kPointXYZRSize = 16;
 const uint32_t kPointXYZRTRSize = 18;
+const uint32_t kPointXYZTPRRTLSize = 30;
 
 const double PI = 3.14159265358979323846;
 
@@ -217,6 +218,16 @@ typedef struct {
   float x;            /**< X axis, Unit:m */
   float y;            /**< Y axis, Unit:m */
   float z;            /**< Z axis, Unit:m */
+  float theta;        /**< Azimuth, horizontal angle in xy-plane, measured from positive x-axis counter-clockwise, Unit:rad */
+  float phi;          /**< Elevation, vertical angle in yz-plane, measured from xy-plane upwards as positive, Unit:rad */
+  float r;            /**< Range, radial distance, Unit:m */
+  float reflectivity; /**< Reflectivity   */
+} LivoxPointXyztprr;
+
+typedef struct {
+  float x;            /**< X axis, Unit:m */
+  float y;            /**< Y axis, Unit:m */
+  float z;            /**< Z axis, Unit:m */
   float reflectivity; /**< Reflectivity   */
   uint8_t tag;        /**< Livox point tag   */
   uint8_t line;       /**< Laser line id     */
@@ -275,7 +286,7 @@ uint32_t CalculatePacketQueueSize(uint32_t interval_ms, uint8_t product_type,
                                   uint8_t data_type);
 void ParseCommandlineInputBdCode(const char *cammandline_str,
                                  std::vector<std::string> &bd_code_list);
-PointConvertHandler GetConvertHandler(uint8_t data_type);
+PointConvertHandler GetConvertHandler(uint8_t data_type, uint32_t coordinate_type=0);
 uint8_t *LivoxPointToPxyzrtl(uint8_t *point_buf, LivoxEthPacket *eth_packet,
     ExtrinsicParameter &extrinsic, uint32_t line_num);
 void ZeroPointDataOfStoragePacket(StoragePacket* storage_packet);
@@ -323,7 +334,8 @@ inline uint32_t GetEchoNumPerPoint(uint32_t data_type) {
   return data_type_info_pair_table[data_type].echo_num;
 }
 
-inline void RawPointConvert(LivoxPointXyzr *dst_point, LivoxPoint *raw_point) {
+inline void RawPointConvert(LivoxPointXyzr *dst_point, 
+                            LivoxPoint *raw_point) {
   dst_point->x = raw_point->x;
   dst_point->y = raw_point->y;
   dst_point->z = raw_point->z;
@@ -349,6 +361,20 @@ inline void RawPointConvert(LivoxPointXyzr *dst_point,
   dst_point->reflectivity = (float)raw_point->reflectivity;
 }
 
+inline void RawPointConvert(LivoxPointXyztprr *dst_point,
+                            LivoxSpherPoint *raw_point) {
+  double radius = raw_point->depth / 1000.0;
+  double theta = raw_point->theta / 100.0 / 180 * PI;
+  double phi = raw_point->phi / 100.0 / 180 * PI;
+  dst_point->x = radius * sin(theta) * cos(phi);
+  dst_point->y = radius * sin(theta) * sin(phi);
+  dst_point->z = radius * cos(theta);
+  dst_point->theta = phi;            /* msg definition swaps theta and phi*/
+  dst_point->phi = PI / 4.0 - theta; /* also the elevation is originally measured from the upright z-axis.*/
+  dst_point->r = radius;
+  dst_point->reflectivity = (float)raw_point->reflectivity;
+}
+
 inline void RawPointConvert(LivoxPointXyzr *dst_point1,
                             LivoxPointXyzr *dst_point2,
                             LivoxDualExtendSpherPoint *raw_point) {
@@ -367,8 +393,8 @@ inline void RawPointConvert(LivoxPointXyzr *dst_point1,
   dst_point2->reflectivity = (float)raw_point->reflectivity2;
 }
 
-inline void RawPointConvert(LivoxPointXyztprrtl *dst_point1,
-                            LivoxPointXyztprrtl *dst_point2,
+inline void RawPointConvert(LivoxPointXyztprr *dst_point1,
+                            LivoxPointXyztprr *dst_point2,
                             LivoxDualExtendSpherPoint *raw_point) {
   double radius1 = raw_point->depth1 / 1000.0;
   double radius2 = raw_point->depth2 / 1000.0;

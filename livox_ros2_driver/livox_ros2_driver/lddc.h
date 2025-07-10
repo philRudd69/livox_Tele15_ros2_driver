@@ -48,11 +48,11 @@ typedef enum {
 
 /** The message type of transfer */
 typedef enum {
-  kPointCloud2Msg = 0,
+  kPointCloud2XyzrtlMsg = 0,
   kLivoxCustomMsg = 1,
   kPclPxyziMsg = 2,
   kLivoxImuMsg = 3,
-  kPointCloud2xyztprrtlMsg = 4,
+  kPointCloud2XyztprrtlMsg = 4,
 } MessageTypeOfTransfer;
 
 class Lddc {
@@ -77,14 +77,16 @@ class Lddc {
   int32_t GetPublishStartTime(LidarDevice *lidar, LidarDataQueue *queue,
                               uint64_t *start_time,
                               StoragePacket *storage_packet);
-  uint32_t PublishPointcloud2(LidarDataQueue *queue, uint32_t packet_num,
-                              uint8_t handle);
+  uint32_t PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_num,
+                                    uint8_t handle);
   uint32_t PublishPointcloudData(LidarDataQueue *queue, uint32_t packet_num,
                                  uint8_t handle);
   uint32_t PublishCustomPointcloud(LidarDataQueue *queue, uint32_t packet_num,
                                    uint8_t handle);
   uint32_t PublishImuData(LidarDataQueue *queue, uint32_t packet_num,
                           uint8_t handle);
+  uint32_t PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packet_num,
+                                       uint8_t handle);
 
   std::shared_ptr<rclcpp::PublisherBase> CreatePublisher(uint8_t msg_type,
     std::string &topic_name, uint32_t queue_size);
@@ -92,7 +94,8 @@ class Lddc {
   std::shared_ptr<rclcpp::PublisherBase> GetCurrentImuPublisher(uint8_t handle);
   void PollingLidarPointCloudData(uint8_t handle, LidarDevice *lidar);
   void PollingLidarImuData(uint8_t handle, LidarDevice *lidar);
-  void InitPointcloud2MsgHeader(sensor_msgs::msg::PointCloud2& cloud);
+  void InitPointcloud2MsgHeaderXyzrtl(sensor_msgs::msg::PointCloud2& cloud);
+  void InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& cloud);
   void FillPointsToPclMsg(PointCloud& pcl_msg,
       LivoxPointXyzrtl* src_point, uint32_t num);
   void FillPointsToCustomMsg(livox_interfaces::msg::CustomMsg& livox_msg,
