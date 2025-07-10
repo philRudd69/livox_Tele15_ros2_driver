@@ -154,33 +154,34 @@ void Lddc::InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& clou
   cloud.fields[2].name = "z";
   cloud.fields[2].count = 1;
   cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[2].offset = 12;
-  cloud.fields[2].name = "theta";
-  cloud.fields[2].count = 1;
-  cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[2].offset = 16;
-  cloud.fields[2].name = "phi";
-  cloud.fields[2].count = 1;
-  cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[2].offset = 20;
-  cloud.fields[2].name = "r";
-  cloud.fields[2].count = 1;
-  cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[3].offset = 24;
-  cloud.fields[3].name = "reflectivity";
+  cloud.fields[3].offset = 12;
+  cloud.fields[3].name = "theta";
   cloud.fields[3].count = 1;
   cloud.fields[3].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[4].offset = 28;
-  cloud.fields[4].name = "tag";
+  cloud.fields[4].offset = 16;
+  cloud.fields[4].name = "phi";
   cloud.fields[4].count = 1;
-  cloud.fields[4].datatype = sensor_msgs::msg::PointField::UINT8;
-  cloud.fields[5].offset = 29;
-  cloud.fields[5].name = "line";
+  cloud.fields[4].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[5].offset = 20;
+  cloud.fields[5].name = "r";
   cloud.fields[5].count = 1;
-  cloud.fields[5].datatype = sensor_msgs::msg::PointField::UINT8;
+  cloud.fields[5].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[6].offset = 24;
+  cloud.fields[6].name = "reflectivity";
+  cloud.fields[6].count = 1;
+  cloud.fields[6].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[7].offset = 28;
+  cloud.fields[7].name = "tag";
+  cloud.fields[7].count = 1;
+  cloud.fields[7].datatype = sensor_msgs::msg::PointField::UINT8;
+  cloud.fields[8].offset = 29;
+  cloud.fields[8].name = "line";
+  cloud.fields[8].count = 1;
+  cloud.fields[8].datatype = sensor_msgs::msg::PointField::UINT8;
   cloud.point_step = sizeof(LivoxPointXyztprrtl);
 }
 
+/* for Livox pointcloud2 with XYZRTL (i.e. purely cartesian) points */
 uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_num,
                                         uint8_t handle) {
   uint64_t timestamp = 0;
@@ -276,6 +277,7 @@ uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_n
   return published_packet;
 }
 
+/* for Livox pointcloud2 with XYZTPRRTL (i.e. cartesian +  spherical) points */
 uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packet_num,
                                            uint8_t handle) {
   uint64_t timestamp = 0;
@@ -457,9 +459,9 @@ uint32_t Lddc::PublishPointcloudData(LidarDataQueue *queue, uint32_t packet_num,
     last_timestamp = timestamp;
   }
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher =
-    std::dynamic_pointer_cast<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>>
-    (GetCurrentPublisher(handle));
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher =
+      std::dynamic_pointer_cast<rclcpp::Publisher
+      <sensor_msgs::msg::PointCloud2>>(GetCurrentPublisher(handle));
   if (kOutputToRos == output_type_) {
     sensor_msgs::msg::PointCloud2 cloud_ros;
     pcl::toROSMsg(cloud,cloud_ros);
@@ -724,7 +726,7 @@ void Lddc::DistributeLidarData(void) {
 
 std::shared_ptr<rclcpp::PublisherBase> Lddc::CreatePublisher(uint8_t msg_type,
     std::string &topic_name, uint32_t queue_size) {
-    if (kPointCloud2XyzrtlMsg == msg_type) {
+    if (kPointCloud2XyzrtlMsg == msg_type || kPointCloud2XyztprrtlMsg == msg_type) {
       RCLCPP_INFO(cur_node_->get_logger(),
           "%s publish use PointCloud2 format", topic_name.c_str());
       return cur_node_->create_publisher<
