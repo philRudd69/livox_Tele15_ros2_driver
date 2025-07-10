@@ -1,7 +1,11 @@
 # Livox ROS2 Driver([览沃ROS2驱动程序中文说明](https://github.com/Livox-SDK/livox_ros2_driver/blob/master/README_CN.md))
 
 The Livox ROS2 driver is a driver package based on ROS2, specifically used to connect LiDAR products produced by Livox.
-This fork differs from the original Livox repository in that it publishes also spherical point coordinates in the pointcloud2 message.
+
+***Note :*** This fork differs from the original Livox repository in that it publishes also spherical point coordinates in the pointcloud2 message.
+
+***Rationale :*** The pattern of the Tele-15 LiDAR is non-repetitive, making it difficult to the user to count FN detections on a known target (with a known size in a known distance). If the pattern were static or repetitive, the user could count the FNs on a target. This number of FNs can be of high interest to the user if one wants to assess safty relevant behaviour of the sensor, like measuring the FN rate on a known target, e.g. to identify the sensor's maximum detection range according to DIN SAE SPEC 91471 [1]. For the non-repetitive pattern one therefore needs to know the exact scanning pattern for each frame. Option one would be to mathematically predict the pattern as in [2]. Option two is to make use of the fact that (1) the pointcloud also contains all INVALID points and (2) the sensor can transfer the points in spherical coordinates to the ROS2 driver. The INVALID points are ALL located at the point cloud origin. In cartesian coordinates these INVALID points would therefore be useless, but in spherical coordinates one can retrieve the scanning directions also for those INVALID points. That means one can retrieve the complete scanning pattern of a frame if one looks at the set of valid and INVALID points in spherical coordinates.
+
 ## 0. Version and Release History
 
 ### 0.1 Current Version
@@ -123,6 +127,7 @@ All launch files of livox_ros2_driver are in the "ws_livox/src/livox_ros2_driver
 | livox_hub_launch.py          | Connect to Livox LiDAR device<br>Publish pointcloud2 format data |
 | livox_lidar_msg_launch.py    | Connect to Livox LiDAR device<br>Publish livox customized pointcloud data |
 | livox_hub_msg_launch.py      | Connect to Livox Hub device<br>Publish livox customized pointcloud data |
+| tele15_rviz_launch.py        | Connect to Livox Tele15 LiDAR device<br>Publish pointcloud2 format data<br>with cartesian and spherical coordinates<br>Autoload rviz |
 
 ### 4.2 Livox_ros2_driver internal main parameter configuration instructions
 
@@ -132,7 +137,7 @@ All internal parameters of Livox_ros2_driver are in the launch file. Below are d
 | ------------ | ------------------------------------------------------------ | ------- |
 | publish_freq | Set the frequency of point cloud publish <br>Floating-point data type, recommended values 5.0, 10.0, 20.0, 50.0, etc. | 10.0    |
 | multi_topic  | If the LiDAR device has an independent topic to publish pointcloud data<br>0 -- All LiDAR devices use the same topic to publish pointcloud data<br>1 -- Each LiDAR device has its own topic to publish point cloud data | 0       |
-| xfer_format  | Set pointcloud format<br>0 -- Livox pointcloud2(PointXYZRTL) pointcloud format<br>1 -- Livox customized pointcloud format<br>2 -- Standard pointcloud2 (pcl :: PointXYZI) pointcloud format in the PCL library | 0       |
+| xfer_format  | Set pointcloud format<br>0 -- Livox pointcloud2(PointXYZRTL) pointcloud format<br>1 -- Livox customized pointcloud format<br>2 -- Standard pointcloud2 (pcl :: PointXYZI) pointcloud format in the PCL library<br>4 -- LivoxPointcloud2(PointXYZTPRRTL) pointcloud format | 0       |
 
 &ensp;&ensp;&ensp;&ensp;***livox_ros2_driver pointcloud data detailed description :***
 
@@ -142,7 +147,7 @@ All internal parameters of Livox_ros2_driver are in the launch file. Below are d
 float32 x               # X axis, unit:m
 float32 y               # Y axis, unit:m
 float32 z               # Z axis, unit:m
-float32 intensity         # the value is reflectivity, 0.0~255.0
+float32 intensity       # the value is reflectivity, 0.0~255.0
 uint8 tag               # livox tag
 uint8 line              # laser number in lidar
 ```
@@ -183,7 +188,7 @@ float32 z               # Z axis, unit:m
 float32 theta           # Azimuth, horizontal angle in xy-plane, measured from positive x-axis counter-clockwise, Unit:rad
 float32 phi             # Elevation, vertical angle in yz-plane, measured from xy-plane upwards as positive, Unit:rad
 float32 r               # Range, radial distance, Unit:m
-float32 intensity         # the value is reflectivity, 0.0~255.0
+float32 reflectivity    # reflectivity, 0.0~255.0
 uint8 tag               # livox tag
 uint8 line              # laser number in lidar
 ```
@@ -204,7 +209,8 @@ In the "ws_livox/src/livox_ros2_driver/launch" path, there are two json files, l
          "return_mode": 0,
          "coordinate": 0,
          "imu_rate": 1,
-         "extrinsic_parameter_source": 0
+         "extrinsic_parameter_source": 0,
+         "enable_high_sensitivity": true
       }
    ]
 }
@@ -221,6 +227,7 @@ LiDAR configuration parameter
 | coordinate                 | Int     | Coordinate<br>0 -- Cartesian<br>1 -- Spherical               | 0               |
 | imu_rate                   | Int     | Push frequency of IMU sensor data<br>0 -- stop push<br>1 -- 200 Hz<br>Others -- undefined, it will cause unpredictable behavior<br>Currently only Horizon supports this, MID serials do not support it | 0               |
 | extrinsic_parameter_source | Int     | Whether to enable extrinsic parameter automatic compensation<br>0 -- Disable automatic compensation of LiDAR external reference<br>1 -- Automatic compensation of LiDAR external reference | 0               |
+| enable_high_sensitivity    | Boolean | Whether to enable high sensitivity mode. ***Only for TELE models***<br>true -- Enable high sensitivity mode<br>false -- Disable high sensitivity mode | false               |
 
 ***Note :***
 
@@ -259,6 +266,31 @@ HUB configuration parameter
 (1) The configuration parameters enable_connect and coordinate in the Hub configuration item "hub_config" are global and control the behavior of all LiDARs. Therefore, the LiDAR related configuration in the Hub json configuration file does not include these two contents.
 
 (2) The Hub itself supports compensation of LiDAR external parameters, and does not require livox_ros2_driver to compensate.
+
+### 5.1 Configuration to publish cartesian and spherical coordinates for each point (XYZTPRRTL) in pointcloud
+
+When connecting directly to LiDAR, use the livox_lidar_config.json file and make sure the "coordinate" is set to "1" to receive points with cartesian and spherical coordinates in the pointcloud. An example config file could look like the following:
+
+```json
+{
+   "lidar_config": [
+      {
+         "broadcast_code": "0TFDG3B006H2Z11",
+         "enable_connect": true,
+         "enable_fan": true,
+         "return_mode": 0,
+         "coordinate": 1,
+         "imu_rate": 1,
+         "extrinsic_parameter_source": 0,
+         "enable_high_sensitivity": true
+      }
+   ]
+}
+```
+***Note :*** This setting sets the coordinate to spherical, meaning it configures the sensor such that the UDP packages being sent from the sensor to the ROS2 driver contain spherical coorinates. Only then the "xfer_format=4" parameter setting in the launch file will work as intented and publish the wanted information. 
+
+***Rationale :*** It is not possible to calculate the spherical coordinates from the cartesian ones, because the pointcloud also contains INVALID points. These INVALID points are all placed in the pointcloud's coordinate origin (x=0,y=0,z=0) and therefore do not provide any information to transform them into meaningful spherical coordinates.  
+
 
 ## 6. livox_ros2_driver timestamp synchronization function
 
@@ -303,3 +335,9 @@ You can get support from Livox with the following methods :
 
 * Send email to cs@livoxtech.com with a clear description of your problem and your setup
 * Report issue on github
+
+## 8. References
+
+[1] DIN SAE SPEC 91471:2023-05 https://www.dinmedia.de/en/technical-rule/din-sae-spec-91471/366011551
+
+[2] Brazeal, R.G.; Wilkinson, B.E.; Hochmair, H.H. A Rigorous Observation Model for the Risley Prism-Based Livox Mid-40 Lidar Sensor. Sensors 2021, 21, 4722. https://doi.org/10.3390/s21144722
