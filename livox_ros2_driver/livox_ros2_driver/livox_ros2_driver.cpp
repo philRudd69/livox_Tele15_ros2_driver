@@ -115,6 +115,12 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
     publish_freq = publish_freq;
   }
 
+  RCLCPP_INFO(this->get_logger(), "xfer_format: %i", xfer_format);
+  RCLCPP_INFO(this->get_logger(), "multi_topic: %i", multi_topic);
+  RCLCPP_INFO(this->get_logger(), "data_src: %i", data_src);
+  RCLCPP_INFO(this->get_logger(), "output_data_type: %i", output_type);
+  RCLCPP_INFO(this->get_logger(), "frame_id: %s", frame_id.c_str());
+  
   future_ = exit_signal_.get_future();
 
   /** Lidar data distribute control and lidar data source set */
@@ -126,6 +132,16 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
   if (data_src == kSourceRawLidar) {
     RCLCPP_INFO(this->get_logger(), "Data Source is raw lidar.");
 
+    if (kPointCloud2XyztprrtlMsg == xfer_format){
+      RCLCPP_INFO(this->get_logger(), "Transfer Format is publishing LivoxPointCloud(XYZTPRRTL)");
+    } else if (kPointCloud2XyzrtlMsg == xfer_format){
+      RCLCPP_INFO(this->get_logger(), "Transfer Format is publishing Livox pointcloud2(PointXYZRTL)");
+    } else if (kLivoxCustomMsg == xfer_format){
+      RCLCPP_INFO(this->get_logger(), "Transfer Format is publishing Livox customized pointcloud format");
+    } else if (kPclPxyziMsg == xfer_format){
+      RCLCPP_INFO(this->get_logger(), "Transfer Format is publishing Standard pointcloud2 (pcl::PointXYZI)");
+    }
+    
     std::string user_config_path;
     this->get_parameter("user_config_path", user_config_path);
     RCLCPP_INFO(this->get_logger(), "Config file : %s", user_config_path.c_str());

@@ -686,8 +686,13 @@ void Lddc::PollingLidarPointCloudData(uint8_t handle, LidarDevice *lidar) {
       PublishCustomPointcloud(p_queue, onetime_publish_packets, handle);
     } else if (kPclPxyziMsg == transfer_format_) {
       PublishPointcloudData(p_queue, onetime_publish_packets, handle);
-    } else if (kPointCloud2XyztprrtlMsg == transfer_format_){
+    } else if (kPointCloud2XyztprrtlMsg == transfer_format_ && lidar->config.coordinate==1){
       PublishPointCloud2Xyztprrtl(p_queue, onetime_publish_packets, handle);
+    } else if (kPointCloud2XyztprrtlMsg == transfer_format_ && lidar->config.coordinate==0){
+      RCLCPP_WARN_THROTTLE(cur_node_->get_logger(), *cur_node_->get_clock(), 1000,
+                           "xfer_format = Livox Pointcloud(XYZTPRRTL) (=4) but coordinate = cartesian (=0)." \
+                           "This is not possible. Switching to xfer_format = Livox Pointcloud(XYZRTL) (=0)");
+      PublishPointcloud2Xyzrtl(p_queue, onetime_publish_packets, handle);
     }
   }
 }
