@@ -369,7 +369,7 @@ inline void RawPointConvert(LivoxPointXyztprr *dst_point,
   dst_point->x = radius * sin(theta) * cos(phi);
   dst_point->y = radius * sin(theta) * sin(phi);
   dst_point->z = radius * cos(theta);
-  dst_point->theta = -phi;            /* msg definition swaps theta and phi*/
+  dst_point->theta = phi;            /* msg definition swaps theta and phi*/
   dst_point->phi = PI / 2.0 - theta; /* also the elevation is originally measured from the upright z-axis.*/
   dst_point->r = radius;
   dst_point->reflectivity = (float)raw_point->reflectivity;
@@ -403,7 +403,7 @@ inline void RawPointConvert(LivoxPointXyztprr *dst_point1,
   dst_point1->x = radius1 * sin(theta) * cos(phi);
   dst_point1->y = radius1 * sin(theta) * sin(phi);
   dst_point1->z = radius1 * cos(theta);
-  dst_point1->theta = -phi;            /* msg definition swaps theta and phi */ /* TODO: maybe make angle negative if >180deg */
+  dst_point1->theta = phi;            /* msg definition swaps theta and phi */ /* TODO: maybe make angle negative if >180deg */
   dst_point1->phi = PI / 2.0 - theta; /* also the elevation is originally measured from the upright z-axis.*/
   dst_point1->r = radius1;
   dst_point1->reflectivity = (float)raw_point->reflectivity1;
@@ -411,7 +411,7 @@ inline void RawPointConvert(LivoxPointXyztprr *dst_point1,
   dst_point2->x = radius2 * sin(theta) * cos(phi);
   dst_point2->y = radius2 * sin(theta) * sin(phi);
   dst_point2->z = radius2 * cos(theta);
-  dst_point2->theta = -phi;            /* msg definition swaps theta and phi*/
+  dst_point2->theta = phi;            /* msg definition swaps theta and phi*/
   dst_point2->phi = PI / 2.0 - theta; /* also the elevation is originally measured from the upright z-axis.*/
   dst_point2->r = radius1;
   dst_point2->reflectivity = (float)raw_point->reflectivity2;
