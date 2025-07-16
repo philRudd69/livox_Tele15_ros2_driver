@@ -137,7 +137,7 @@ All internal parameters of Livox_ros2_driver are in the launch file. Below are d
 | ------------ | ------------------------------------------------------------ | ------- |
 | publish_freq | Set the frequency of point cloud publish <br>Floating-point data type, recommended values 5.0, 10.0, 20.0, 50.0, etc. | 10.0    |
 | multi_topic  | If the LiDAR device has an independent topic to publish pointcloud data<br>0 -- All LiDAR devices use the same topic to publish pointcloud data<br>1 -- Each LiDAR device has its own topic to publish point cloud data | 0       |
-| xfer_format  | Set pointcloud format<br>0 -- Livox pointcloud2(PointXYZRTL) pointcloud format<br>1 -- Livox customized pointcloud format<br>2 -- Standard pointcloud2 (pcl :: PointXYZI) pointcloud format in the PCL library<br>4 -- Livox Pointcloud2(PointXYZTPRRTL) pointcloud format | 0       |
+| xfer_format  | Set pointcloud format<br>0 -- Livox pointcloud2(PointXYZRTL) pointcloud format<br>1 -- Livox customized pointcloud format<br>2 -- Standard pointcloud2 (pcl :: PointXYZI) pointcloud format in the PCL library<br>4 -- Livox Pointcloud2(PointXYZTTPRRTL) pointcloud format | 0       |
 
 &ensp;&ensp;&ensp;&ensp;***livox_ros2_driver pointcloud data detailed description :***
 
@@ -268,7 +268,7 @@ HUB configuration parameter
 
 (2) The Hub itself supports compensation of LiDAR external parameters, and does not require livox_ros2_driver to compensate.
 
-### 5.1 Configuration to publish cartesian and spherical coordinates for each point (XYZTPRRTL) in pointcloud
+### 5.1 Configuration to publish cartesian and spherical coordinates for each point (XYZTTPRRTL) in pointcloud
 
 When connecting directly to LiDAR, use the livox_lidar_config.json file and make sure the "coordinate" is set to "1" to receive points with cartesian and spherical coordinates in the pointcloud. An example config file could look like the following:
 

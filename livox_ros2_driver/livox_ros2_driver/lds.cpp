@@ -276,11 +276,11 @@ static uint8_t *LivoxSpherPointToPxyzrtl(uint8_t *point_buf, \
   return (uint8_t *)dst_point;
 }
 
-static uint8_t *LivoxSpherPointToPxyztprrtl(uint8_t *point_buf, \
+static uint8_t *LivoxSpherPointToPxyzttprrtl(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
     uint32_t line_num, uint32_t offset_time, \
     uint32_t point_interval) {
-  LivoxPointXyztprrtl *dst_point = (LivoxPointXyztprrtl *)point_buf;
+  LivoxPointXyzttprrtl *dst_point = (LivoxPointXyzttprrtl *)point_buf;
   uint32_t points_per_packet = GetPointsPerPacket(eth_packet->data_type);
   LivoxSpherPoint *raw_point =
       reinterpret_cast<LivoxSpherPoint *>(eth_packet->data);
@@ -366,11 +366,11 @@ static uint8_t *LivoxExtendSpherPointToPxyzrtl(uint8_t *point_buf, \
   return (uint8_t *)dst_point;
 }
 
-static uint8_t *LivoxExtendSpherPointToPxyztprrtl(uint8_t *point_buf, \
+static uint8_t *LivoxExtendSpherPointToPxyzttprrtl(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
     uint32_t line_num, uint32_t offset_time, \
     uint32_t point_interval) {
-  LivoxPointXyztprrtl *dst_point = (LivoxPointXyztprrtl *)point_buf;
+  LivoxPointXyzttprrtl *dst_point = (LivoxPointXyzttprrtl *)point_buf;
   uint32_t points_per_packet = GetPointsPerPacket(eth_packet->data_type);
   LivoxExtendSpherPoint *raw_point =
       reinterpret_cast<LivoxExtendSpherPoint *>(eth_packet->data);
@@ -477,11 +477,11 @@ static uint8_t *LivoxDualExtendSpherPointToPxyzrtl(uint8_t *point_buf, \
   return (uint8_t *)dst_point;
 }
 
-static uint8_t *LivoxDualExtendSpherPointToPxyztprrtl(uint8_t *point_buf, \
+static uint8_t *LivoxDualExtendSpherPointToPxyzttprrtl(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
     uint32_t line_num, uint32_t offset_time, \
     uint32_t point_interval) {
-  LivoxPointXyztprrtl *dst_point = (LivoxPointXyztprrtl *)point_buf;
+  LivoxPointXyzttprrtl *dst_point = (LivoxPointXyzttprrtl *)point_buf;
   uint32_t points_per_packet = GetPointsPerPacket(eth_packet->data_type);
   LivoxDualExtendSpherPoint *raw_point =
       reinterpret_cast<LivoxDualExtendSpherPoint *>(eth_packet->data);
@@ -636,11 +636,11 @@ const PointConvertHandler to_pxyzi_handler_table[kMaxPointDataType] = {
 
 const PointTimeConvertHandler to_pxyztprr_handler_table[kMaxPointDataType] = {
     nullptr,
-    LivoxSpherPointToPxyztprrtl,
+    LivoxSpherPointToPxyzttprrtl,
     nullptr,
-    LivoxExtendSpherPointToPxyztprrtl,
+    LivoxExtendSpherPointToPxyzttprrtl,
     nullptr,
-    LivoxDualExtendSpherPointToPxyztprrtl,
+    LivoxDualExtendSpherPointToPxyzttprrtl,
     nullptr,
     nullptr,
     nullptr

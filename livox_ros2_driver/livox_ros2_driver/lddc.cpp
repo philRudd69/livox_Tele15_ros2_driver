@@ -34,6 +34,8 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include "livox_interfaces/msg/custom_point.hpp"
 #include "livox_interfaces/msg/custom_msg.hpp"
+#include "livox_interfaces/msg/spherical_and_cartesian_point.hpp"
+#include "livox_interfaces/msg/spherical_and_cartesian_msg.hpp"
 
 #include "lds_lidar.h"
 #include "lds_lvx.h"
@@ -136,7 +138,7 @@ void Lddc::InitPointcloud2MsgHeaderXyzrtl(sensor_msgs::msg::PointCloud2& cloud) 
   cloud.point_step = sizeof(LivoxPointXyzrtl);
 }
 
-void Lddc::InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& cloud) {
+void Lddc::InitPointcloud2MsgHeaderXyzttprrtl(sensor_msgs::msg::PointCloud2& cloud) {
   /* the new point type that contains cartesian and spherical coordinates */ 
   cloud.header.frame_id.assign(frame_id_);
   cloud.height = 1;
@@ -182,7 +184,7 @@ void Lddc::InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& clou
   cloud.fields[9].name = "line";
   cloud.fields[9].count = 1;
   cloud.fields[9].datatype = sensor_msgs::msg::PointField::UINT8;
-  cloud.point_step = sizeof(LivoxPointXyztprrtl);
+  cloud.point_step = sizeof(LivoxPointXyzttprrtl);
 }
 
 /* for Livox pointcloud2 with XYZRTL (i.e. purely cartesian) points */
@@ -281,8 +283,8 @@ uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_n
   return published_packet;
 }
 
-/* for Livox pointcloud2 with XYZTPRRTL (i.e. cartesian +  spherical) points */
-uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packet_num,
+/* for Livox pointcloud2 with XYZTTPRRTL (i.e. cartesian +  spherical) points */
+uint32_t Lddc::PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t packet_num,
                                            uint8_t handle) {
   uint64_t timestamp = 0;
   uint64_t first_timestamp = 0;
@@ -297,10 +299,10 @@ uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packe
   }
 
   sensor_msgs::msg::PointCloud2 cloud;
-  InitPointcloud2MsgHeaderXyztprrtl(cloud);
+  InitPointcloud2MsgHeaderXyzttprrtl(cloud);
   cloud.data.resize(packet_num * kMaxPointPerEthPacket *
-                    sizeof(LivoxPointXyztprrtl));
-  cloud.point_step = sizeof(LivoxPointXyztprrtl);
+                    sizeof(LivoxPointXyzttprrtl));
+  cloud.point_step = sizeof(LivoxPointXyzttprrtl);
 
   uint8_t *point_base = cloud.data.data();
   uint8_t data_source = lidar->data_src;
@@ -621,6 +623,137 @@ uint32_t Lddc::PublishCustomPointcloud(LidarDataQueue *queue,
   return published_packet;
 }
 
+void Lddc::FillSphericalAndCartesianPointMsg(livox_interfaces::msg::SphericalAndCartesianMsg& livox_msg, \
+    LivoxPointXyzttprrtl* src_point, uint32_t num, uint32_t offset_time, \
+    uint32_t point_interval, uint32_t echo_num) {
+  LivoxPointXyzttprrtl* point_xyzttprrtl = (LivoxPointXyzttprrtl*)src_point;
+  for (uint32_t i = 0; i < num; i++) {
+    livox_interfaces::msg::SphericalAndCartesianPoint point;
+    if (echo_num > 1) { /** dual return mode */
+      point.time_offset = offset_time + (i / echo_num) * point_interval;
+    } else {
+      point.time_offset = offset_time + i * point_interval;
+    }
+    point.x = point_xyzttprrtl->x;
+    point.y = point_xyzttprrtl->y;
+    point.z = point_xyzttprrtl->z;
+    point.theta = point_xyzttprrtl->theta;
+    point.phi = point_xyzttprrtl->phi;
+    point.r = point_xyzttprrtl->r;
+    point.reflectivity = point_xyzttprrtl->reflectivity;
+    point.tag = point_xyzttprrtl->tag;
+    point.line = point_xyzttprrtl->line;
+    ++point_xyzttprrtl;
+    livox_msg.points.push_back(point);
+  }
+}
+
+uint32_t Lddc::PublishSphericalAndCartesianPointcloud(LidarDataQueue *queue,
+                                                      uint32_t packet_num, uint8_t handle) {
+  // static uint32_t msg_seq = 0;
+  uint64_t timestamp = 0;
+  uint64_t last_timestamp = 0;
+
+  StoragePacket storage_packet;
+  LidarDevice *lidar = &lds_->lidars_[handle];
+  if (GetPublishStartTime(lidar, queue, &last_timestamp, &storage_packet)) {
+    /* the remaning packets in queue maybe not enough after skip */
+    return 0;
+  }
+
+  livox_interfaces::msg::SphericalAndCartesianMsg livox_msg;
+  livox_msg.header.frame_id.assign(frame_id_);
+  // livox_msg.header.seq = msg_seq;
+  // ++msg_seq;
+  livox_msg.timebase = 0;
+  livox_msg.point_num = 0;
+  livox_msg.lidar_id = handle;
+
+  uint8_t point_buf[2048];
+  uint8_t data_source = lds_->lidars_[handle].data_src;
+  uint32_t line_num = GetLaserLineNumber(lidar->info.type);
+  uint32_t echo_num = GetEchoNumPerPoint(lidar->raw_data_type);
+  uint32_t point_interval = GetPointInterval(lidar->info.type);
+  uint32_t published_packet = 0;
+  uint32_t packet_offset_time = 0;  /** uint:ns */
+  uint32_t is_zero_packet = 0;
+  while (published_packet < packet_num) {
+    QueuePrePop(queue, &storage_packet);
+    LivoxEthPacket *raw_packet =
+        reinterpret_cast<LivoxEthPacket *>(storage_packet.raw_data);
+    timestamp = GetStoragePacketTimestamp(&storage_packet, data_source);
+    int64_t packet_gap = timestamp - last_timestamp;
+    if ((packet_gap > lidar->packet_interval_max) &&
+        lidar->data_is_pubulished) {
+      // RCLCPP_INFO(this->get_logger(), "Lidar[%d] packet time interval is %ldns", handle,
+      // packet_gap);
+      if (kSourceLvxFile != data_source) {
+        timestamp = last_timestamp + lidar->packet_interval;
+        ZeroPointDataOfStoragePacket(&storage_packet);
+        is_zero_packet = 1;
+      }
+    }
+    /** first packet */
+    if (!published_packet) {
+      livox_msg.timebase = timestamp;
+      packet_offset_time = 0;
+      /** convert to ros time stamp */
+      livox_msg.header.stamp = rclcpp::Time(timestamp);
+    } else {
+      packet_offset_time = (uint32_t)(timestamp - livox_msg.timebase);
+    }
+    uint32_t single_point_num = storage_packet.point_num * echo_num;
+
+    if (kSourceLvxFile != data_source) {
+      PointConvertHandler pf_point_convert =
+          GetConvertHandler(lidar->raw_data_type);
+      if (pf_point_convert) {
+        pf_point_convert(point_buf, raw_packet, lidar->extrinsic_parameter, \
+            line_num);
+      } else {
+        /* Skip the packet */
+        RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] unkown packet type[%d]", handle,
+                 lidar->raw_data_type);
+        break;
+      }
+    } else {
+      LivoxPointToPxyzrtl(point_buf, raw_packet, lidar->extrinsic_parameter, \
+          line_num);
+    }
+    LivoxPointXyzttprrtl *dst_point = (LivoxPointXyzttprrtl *)point_buf;
+    FillSphericalAndCartesianPointMsg(livox_msg, dst_point, single_point_num, \
+        packet_offset_time, point_interval, echo_num);
+
+    if (!is_zero_packet) {
+      QueuePopUpdate(queue);
+    } else {
+      is_zero_packet = 0;
+    }
+
+    livox_msg.point_num += single_point_num;
+    last_timestamp = timestamp;
+    ++published_packet;
+  }
+  rclcpp::Publisher<livox_interfaces::msg::SphericalAndCartesianMsg>::SharedPtr publisher =
+        std::dynamic_pointer_cast<rclcpp::Publisher
+        <livox_interfaces::msg::SphericalAndCartesianMsg>>(GetCurrentPublisher(handle));  
+    if (kOutputToRos == output_type_) {
+      publisher->publish(livox_msg);
+    } else {
+  #if 0    
+      if (bag_) {
+        bag_->write(p_publisher->getTopic(), rclcpp::Time(timestamp),
+            livox_msg);
+      }
+  #endif    
+    }
+
+    if (!lidar->data_is_pubulished) {
+      lidar->data_is_pubulished = true;
+    }
+    return published_packet;
+}
+
 uint32_t Lddc::PublishImuData(LidarDataQueue *queue, uint32_t packet_num,
                               uint8_t handle) {
   uint64_t timestamp = 0;
@@ -698,11 +831,11 @@ void Lddc::PollingLidarPointCloudData(uint8_t handle, LidarDevice *lidar) {
       PublishCustomPointcloud(p_queue, onetime_publish_packets, handle);
     } else if (kPclPxyziMsg == transfer_format_) {
       PublishPointcloudData(p_queue, onetime_publish_packets, handle);
-    } else if (kPointCloud2XyztprrtlMsg == transfer_format_ && lidar->config.coordinate==1){
-      PublishPointCloud2Xyztprrtl(p_queue, onetime_publish_packets, handle);
-    } else if (kPointCloud2XyztprrtlMsg == transfer_format_ && lidar->config.coordinate==0){
+    } else if (kPointCloud2XyzttprrtlMsg == transfer_format_ && lidar->config.coordinate==1){
+      PublishPointCloud2Xyzttprrtl(p_queue, onetime_publish_packets, handle);
+    } else if (kPointCloud2XyzttprrtlMsg == transfer_format_ && lidar->config.coordinate==0){
       RCLCPP_WARN_THROTTLE(cur_node_->get_logger(), *cur_node_->get_clock(), 1000,
-                           "xfer_format = Livox Pointcloud(XYZTPRRTL) (=4) but coordinate = cartesian (=0)." \
+                           "xfer_format = Livox Pointcloud(XYZTTPRRTL) (=4) but coordinate = cartesian (=0)." \
                            "This is not possible. Switching to xfer_format = Livox Pointcloud(XYZRTL) (=0)");
       PublishPointcloud2Xyzrtl(p_queue, onetime_publish_packets, handle);
     }
@@ -743,7 +876,7 @@ void Lddc::DistributeLidarData(void) {
 
 std::shared_ptr<rclcpp::PublisherBase> Lddc::CreatePublisher(uint8_t msg_type,
     std::string &topic_name, uint32_t queue_size) {
-    if (kPointCloud2XyzrtlMsg == msg_type || kPointCloud2XyztprrtlMsg == msg_type) {
+    if (kPointCloud2XyzrtlMsg == msg_type || kPointCloud2XyzttprrtlMsg == msg_type) {
       RCLCPP_INFO(cur_node_->get_logger(),
           "%s publish use PointCloud2 format", topic_name.c_str());
       return cur_node_->create_publisher<

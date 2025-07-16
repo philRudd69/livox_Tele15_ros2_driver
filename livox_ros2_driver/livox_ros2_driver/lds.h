@@ -70,7 +70,7 @@ const int kBdCodeSize = 15;
 
 const uint32_t kPointXYZRSize = 16;
 const uint32_t kPointXYZRTRSize = 18;
-const uint32_t kPointXYZTPRRTLSize = 34;
+const uint32_t kPointXYZTTPRRTLSize = 34;
 
 const double PI = 3.14159265358979323846;
 
@@ -244,7 +244,7 @@ typedef struct {
   float reflectivity; /**< Reflectivity   */
   uint8_t tag;        /**< Livox point tag   */
   uint8_t line;       /**< Laser line id     */
-} LivoxPointXyztprrtl;
+} LivoxPointXyzttprrtl;
 
 #pragma pack()
 

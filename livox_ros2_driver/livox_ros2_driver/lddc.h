@@ -35,6 +35,8 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include "livox_interfaces/msg/custom_point.hpp"
 #include "livox_interfaces/msg/custom_msg.hpp"
+#include "livox_interfaces/msg/spherical_and_cartesian_point.hpp"
+#include "livox_interfaces/msg/spherical_and_cartesian_msg.hpp"
 
 namespace livox_ros {
 
@@ -52,7 +54,7 @@ typedef enum {
   kLivoxCustomMsg = 1,
   kPclPxyziMsg = 2,
   kLivoxImuMsg = 3,
-  kPointCloud2XyztprrtlMsg = 4,
+  kPointCloud2XyzttprrtlMsg = 4,
 } MessageTypeOfTransfer;
 
 class Lddc {
@@ -83,9 +85,11 @@ class Lddc {
                                  uint8_t handle);
   uint32_t PublishCustomPointcloud(LidarDataQueue *queue, uint32_t packet_num,
                                    uint8_t handle);
+  uint32_t PublishSphericalAndCartesianPointcloud(LidarDataQueue *queue,
+                                                  uint32_t packet_num, uint8_t handle);
   uint32_t PublishImuData(LidarDataQueue *queue, uint32_t packet_num,
                           uint8_t handle);
-  uint32_t PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packet_num,
+  uint32_t PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t packet_num,
                                        uint8_t handle);
 
   std::shared_ptr<rclcpp::PublisherBase> CreatePublisher(uint8_t msg_type,
@@ -95,11 +99,14 @@ class Lddc {
   void PollingLidarPointCloudData(uint8_t handle, LidarDevice *lidar);
   void PollingLidarImuData(uint8_t handle, LidarDevice *lidar);
   void InitPointcloud2MsgHeaderXyzrtl(sensor_msgs::msg::PointCloud2& cloud);
-  void InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& cloud);
+  void InitPointcloud2MsgHeaderXyzttprrtl(sensor_msgs::msg::PointCloud2& cloud);
   void FillPointsToPclMsg(PointCloud& pcl_msg,
       LivoxPointXyzrtl* src_point, uint32_t num);
   void FillPointsToCustomMsg(livox_interfaces::msg::CustomMsg& livox_msg,
       LivoxPointXyzrtl* src_point, uint32_t num, uint32_t offset_time,
+      uint32_t point_interval, uint32_t echo_num);
+  void FillSphericalAndCartesianPointMsg(livox_interfaces::msg::SphericalAndCartesianMsg& livox_msg,
+      LivoxPointXyzttprrtl* src_point, uint32_t num, uint32_t offset_time,
       uint32_t point_interval, uint32_t echo_num);
   uint8_t transfer_format_;
   uint8_t use_multi_topic_;
