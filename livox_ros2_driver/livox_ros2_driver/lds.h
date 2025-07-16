@@ -70,7 +70,7 @@ const int kBdCodeSize = 15;
 
 const uint32_t kPointXYZRSize = 16;
 const uint32_t kPointXYZRTRSize = 18;
-const uint32_t kPointXYZTPRRTLSize = 30;
+const uint32_t kPointXYZTPRRTLSize = 34;
 
 const double PI = 3.14159265358979323846;
 
@@ -237,6 +237,7 @@ typedef struct {
   float x;            /**< X axis, Unit:m */
   float y;            /**< Y axis, Unit:m */
   float z;            /**< Z axis, Unit:m */
+  uint32_t time_offset; /** point time offset from header time stamp, Unit:ns */
   float theta;        /**< Azimuth, horizontal angle in xy-plane, measured from positive x-axis counter-clockwise, Unit:rad */
   float phi;          /**< Elevation, vertical angle in yz-plane, measured from xy-plane upwards as positive, Unit:rad */
   float r;            /**< Range, radial distance, Unit:m */
@@ -250,6 +251,12 @@ typedef struct {
 typedef uint8_t *(*PointConvertHandler)(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
     uint32_t line_num);
+
+typedef uint8_t *(*PointTimeConvertHandler)(uint8_t *point_buf, \
+    LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
+    uint32_t line_num, \
+    uint32_t offset_time, \
+    uint32_t point_interval);
 
 const DataTypePointInfoPair data_type_info_pair_table[kMaxPointDataType] = {
     {100, 1318, sizeof(LivoxRawPoint), 1},
@@ -286,7 +293,8 @@ uint32_t CalculatePacketQueueSize(uint32_t interval_ms, uint8_t product_type,
                                   uint8_t data_type);
 void ParseCommandlineInputBdCode(const char *cammandline_str,
                                  std::vector<std::string> &bd_code_list);
-PointConvertHandler GetConvertHandler(uint8_t data_type, uint32_t coordinate_type=0);
+PointConvertHandler GetConvertHandler(uint8_t data_type);
+PointTimeConvertHandler GetTimeConvertHandler(uint8_t data_type);
 uint8_t *LivoxPointToPxyzrtl(uint8_t *point_buf, LivoxEthPacket *eth_packet,
     ExtrinsicParameter &extrinsic, uint32_t line_num);
 void ZeroPointDataOfStoragePacket(StoragePacket* storage_packet);

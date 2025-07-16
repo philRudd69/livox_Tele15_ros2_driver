@@ -278,13 +278,16 @@ static uint8_t *LivoxSpherPointToPxyzrtl(uint8_t *point_buf, \
 
 static uint8_t *LivoxSpherPointToPxyztprrtl(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
-    uint32_t line_num) {
+    uint32_t line_num, uint32_t offset_time, \
+    uint32_t point_interval) {
   LivoxPointXyztprrtl *dst_point = (LivoxPointXyztprrtl *)point_buf;
   uint32_t points_per_packet = GetPointsPerPacket(eth_packet->data_type);
   LivoxSpherPoint *raw_point =
       reinterpret_cast<LivoxSpherPoint *>(eth_packet->data);
-
+    
+  uint32_t line_id = 0;
   while (points_per_packet) {
+    uint32_t time_offset = offset_time + line_id * point_interval;
     RawPointConvert((LivoxPointXyztprr *)dst_point, raw_point);
     if (extrinsic.enable && raw_point->depth) {
       PointXyz src_point = *((PointXyz *)dst_point);
@@ -292,8 +295,10 @@ static uint8_t *LivoxSpherPointToPxyztprrtl(uint8_t *point_buf, \
     }
     dst_point->tag = 0;
     dst_point->line = 0;
+    dst_point->time_offset = time_offset;
     ++raw_point;
     ++dst_point;
+    ++line_id;
     --points_per_packet;
   }
 
@@ -363,20 +368,23 @@ static uint8_t *LivoxExtendSpherPointToPxyzrtl(uint8_t *point_buf, \
 
 static uint8_t *LivoxExtendSpherPointToPxyztprrtl(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
-    uint32_t line_num) {
+    uint32_t line_num, uint32_t offset_time, \
+    uint32_t point_interval) {
   LivoxPointXyztprrtl *dst_point = (LivoxPointXyztprrtl *)point_buf;
   uint32_t points_per_packet = GetPointsPerPacket(eth_packet->data_type);
   LivoxExtendSpherPoint *raw_point =
       reinterpret_cast<LivoxExtendSpherPoint *>(eth_packet->data);
 
-  uint8_t line_id = 0;
+  uint32_t line_id = 0;
   while (points_per_packet) {
+    uint32_t time_offset = offset_time + line_id * point_interval;
     RawPointConvert((LivoxPointXyztprr *)dst_point, (LivoxSpherPoint *)raw_point);
     if (extrinsic.enable && raw_point->depth) {
       PointXyz src_point = *((PointXyz *)dst_point);
       PointExtrisincCompensation((PointXyz *)dst_point, src_point, extrinsic);
     }
     dst_point->tag = raw_point->tag;
+    dst_point->time_offset = time_offset;
     if (line_num > 1) {
       dst_point->line = line_id % line_num;
     } else {
@@ -471,14 +479,16 @@ static uint8_t *LivoxDualExtendSpherPointToPxyzrtl(uint8_t *point_buf, \
 
 static uint8_t *LivoxDualExtendSpherPointToPxyztprrtl(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
-    uint32_t line_num) {
+    uint32_t line_num, uint32_t offset_time, \
+    uint32_t point_interval) {
   LivoxPointXyztprrtl *dst_point = (LivoxPointXyztprrtl *)point_buf;
   uint32_t points_per_packet = GetPointsPerPacket(eth_packet->data_type);
   LivoxDualExtendSpherPoint *raw_point =
       reinterpret_cast<LivoxDualExtendSpherPoint *>(eth_packet->data);
 
-  uint8_t line_id = 0;
+  uint32_t line_id = 0;
   while (points_per_packet) {
+    uint32_t time_offset = offset_time + line_id * point_interval;
     RawPointConvert((LivoxPointXyztprr *)dst_point,
                     (LivoxPointXyztprr *)(dst_point + 1),
                     (LivoxDualExtendSpherPoint *)raw_point);
@@ -487,6 +497,7 @@ static uint8_t *LivoxDualExtendSpherPointToPxyztprrtl(uint8_t *point_buf, \
       PointExtrisincCompensation((PointXyz *)dst_point, src_point, extrinsic);
     }
     dst_point->tag = raw_point->tag1;
+    dst_point->time_offset = time_offset;
     if (line_num > 1) {
       dst_point->line = line_id % line_num;
     } else {
@@ -499,6 +510,7 @@ static uint8_t *LivoxDualExtendSpherPointToPxyztprrtl(uint8_t *point_buf, \
       PointExtrisincCompensation((PointXyz *)dst_point, src_point, extrinsic);
     }
     dst_point->tag = raw_point->tag2;
+    dst_point->time_offset = time_offset;
     if (line_num > 1) {
       dst_point->line = line_id % line_num;
     } else {
@@ -622,7 +634,7 @@ const PointConvertHandler to_pxyzi_handler_table[kMaxPointDataType] = {
     LivoxTripleExtendSpherPointToPxyzrtl
     };
 
-const PointConvertHandler to_pxyztprr_handler_table[kMaxPointDataType] = {
+const PointTimeConvertHandler to_pxyztprr_handler_table[kMaxPointDataType] = {
     nullptr,
     LivoxSpherPointToPxyztprrtl,
     nullptr,
@@ -634,10 +646,15 @@ const PointConvertHandler to_pxyztprr_handler_table[kMaxPointDataType] = {
     nullptr
     };
 
-PointConvertHandler GetConvertHandler(uint8_t data_type, uint32_t coordiate_type) {
-  if (data_type < kMaxPointDataType && coordiate_type == 0)
+PointConvertHandler GetConvertHandler(uint8_t data_type) {
+  if (data_type < kMaxPointDataType)
     return to_pxyzi_handler_table[data_type];
-  else if (data_type < kMaxPointDataType && coordiate_type == 1)
+  else
+    return nullptr;
+}
+
+PointTimeConvertHandler GetTimeConvertHandler(uint8_t data_type) {
+  if (data_type < kMaxPointDataType)
     return to_pxyztprr_handler_table[data_type];
   else
     return nullptr;

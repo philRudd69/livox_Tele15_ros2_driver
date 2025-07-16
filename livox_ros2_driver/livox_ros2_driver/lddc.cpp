@@ -155,29 +155,33 @@ void Lddc::InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& clou
   cloud.fields[2].count = 1;
   cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
   cloud.fields[3].offset = 12;
-  cloud.fields[3].name = "theta";
+  cloud.fields[3].name = "time_offset";
   cloud.fields[3].count = 1;
-  cloud.fields[3].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[3].datatype = sensor_msgs::msg::PointField::UINT32;
   cloud.fields[4].offset = 16;
-  cloud.fields[4].name = "phi";
+  cloud.fields[4].name = "theta";
   cloud.fields[4].count = 1;
   cloud.fields[4].datatype = sensor_msgs::msg::PointField::FLOAT32;
   cloud.fields[5].offset = 20;
-  cloud.fields[5].name = "r";
+  cloud.fields[5].name = "phi";
   cloud.fields[5].count = 1;
   cloud.fields[5].datatype = sensor_msgs::msg::PointField::FLOAT32;
   cloud.fields[6].offset = 24;
-  cloud.fields[6].name = "reflectivity";
+  cloud.fields[6].name = "r";
   cloud.fields[6].count = 1;
   cloud.fields[6].datatype = sensor_msgs::msg::PointField::FLOAT32;
   cloud.fields[7].offset = 28;
-  cloud.fields[7].name = "tag";
+  cloud.fields[7].name = "reflectivity";
   cloud.fields[7].count = 1;
-  cloud.fields[7].datatype = sensor_msgs::msg::PointField::UINT8;
-  cloud.fields[8].offset = 29;
-  cloud.fields[8].name = "line";
+  cloud.fields[7].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[8].offset = 32;
+  cloud.fields[8].name = "tag";
   cloud.fields[8].count = 1;
   cloud.fields[8].datatype = sensor_msgs::msg::PointField::UINT8;
+  cloud.fields[9].offset = 33;
+  cloud.fields[9].name = "line";
+  cloud.fields[9].count = 1;
+  cloud.fields[9].datatype = sensor_msgs::msg::PointField::UINT8;
   cloud.point_step = sizeof(LivoxPointXyztprrtl);
 }
 
@@ -281,6 +285,7 @@ uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_n
 uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packet_num,
                                            uint8_t handle) {
   uint64_t timestamp = 0;
+  uint64_t first_timestamp = 0;
   uint64_t last_timestamp = 0;
   uint32_t published_packet = 0;
 
@@ -301,6 +306,8 @@ uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packe
   uint8_t data_source = lidar->data_src;
   uint32_t line_num = GetLaserLineNumber(lidar->info.type);
   uint32_t echo_num = GetEchoNumPerPoint(lidar->raw_data_type);
+  uint32_t point_interval = GetPointInterval(lidar->info.type);
+  uint32_t packet_offset_time = 0;
   uint32_t is_zero_packet = 0;
   while ((published_packet < packet_num) && !QueueIsEmpty(queue)) {
     QueuePrePop(queue, &storage_packet);
@@ -321,15 +328,20 @@ uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packe
     /** Use the first packet timestamp as pointcloud2 msg timestamp */
     if (!published_packet) {
       cloud.header.stamp = rclcpp::Time(timestamp);
+      packet_offset_time = 0;
+      first_timestamp = timestamp;
+    } else {
+      packet_offset_time = (uint32_t)(timestamp - first_timestamp);
     }
     uint32_t single_point_num = storage_packet.point_num * echo_num;
 
     if (kSourceLvxFile != data_source) {
-      PointConvertHandler pf_point_convert =
-          GetConvertHandler(lidar->raw_data_type, lidar->config.coordinate);
+      PointTimeConvertHandler pf_point_convert =
+          GetTimeConvertHandler(lidar->raw_data_type);
       if (pf_point_convert) {
         point_base = pf_point_convert(point_base, raw_packet,
-            lidar->extrinsic_parameter, line_num);
+            lidar->extrinsic_parameter, line_num, packet_offset_time, 
+            point_interval);
       } else {
         /** Skip the packet */
         RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] unkown packet type[%d]", handle,

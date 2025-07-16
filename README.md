@@ -185,6 +185,7 @@ uint8 line              # laser number in lidar
 float32 x               # X axis, unit:m
 float32 y               # Y axis, unit:m
 float32 z               # Z axis, unit:m
+uint32  time_offset     # time offeset relative to the point cloud header stamp
 float32 theta           # Azimuth, horizontal angle in xy-plane, measured from positive x-axis counter-clockwise, Unit:rad
 float32 phi             # Elevation, vertical angle in yz-plane, measured from xy-plane upwards as positive, Unit:rad
 float32 r               # Range, radial distance, Unit:m
