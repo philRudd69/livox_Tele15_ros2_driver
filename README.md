@@ -179,7 +179,7 @@ uint8 line              # laser number in lidar
 
 &ensp;&ensp;&ensp;&ensp;Please refer to the pcl :: PointXYZI data structure in the point_types.hpp file of the PCL library.
 
-4. Livox pointcloud2 (PointXYZPTRRTL) point cloud format, as follows :
+4. Livox pointcloud2 (PointXYZTTPRRTL) point cloud format, as follows :
 
 ```c
 float32 x               # X axis, unit:m
@@ -290,7 +290,7 @@ When connecting directly to LiDAR, use the livox_lidar_config.json file and make
 ```
 ***Note :*** This setting sets the coordinate to spherical, meaning it configures the sensor such that the UDP packages being sent from the sensor to the ROS2 driver contain spherical coorinates. Only then the "xfer_format=4" parameter setting in the launch file will work as intented and publish the wanted information. 
 
-***Rationale :*** It is not possible to calculate the spherical coordinates from the cartesian ones, because the pointcloud also contains INVALID points. These INVALID points are all placed in the pointcloud's coordinate origin (x=0,y=0,z=0) and therefore do not provide any information to transform them into meaningful spherical coordinates.  
+***Rationale :*** It is not possible to calculate the spherical coordinates from the cartesian ones, because the pointcloud also contains INVALID/NO-HIT points. These points are all placed in the pointcloud's coordinate origin (x=0,y=0,z=0) and therefore do not provide any information to transform them into meaningful spherical coordinates.  
 
 
 ## 6. livox_ros2_driver timestamp synchronization function

@@ -136,12 +136,12 @@ void Lddc::InitPointcloud2MsgHeaderXyzrtl(sensor_msgs::msg::PointCloud2& cloud) 
   cloud.point_step = sizeof(LivoxPointXyzrtl);
 }
 
-void Lddc::InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& cloud) {
+void Lddc::InitPointcloud2MsgHeaderXyzttprrtl(sensor_msgs::msg::PointCloud2& cloud) {
   /* the new point type that contains cartesian and spherical coordinates */ 
   cloud.header.frame_id.assign(frame_id_);
   cloud.height = 1;
   cloud.width = 0;
-  cloud.fields.resize(9);
+  cloud.fields.resize(10);
   cloud.fields[0].offset = 0;
   cloud.fields[0].name = "x";
   cloud.fields[0].count = 1;
@@ -182,7 +182,7 @@ void Lddc::InitPointcloud2MsgHeaderXyztprrtl(sensor_msgs::msg::PointCloud2& clou
   cloud.fields[9].name = "line";
   cloud.fields[9].count = 1;
   cloud.fields[9].datatype = sensor_msgs::msg::PointField::UINT8;
-  cloud.point_step = sizeof(LivoxPointXyztprrtl);
+  cloud.point_step = sizeof(LivoxPointXyzttprrtl);
 }
 
 /* for Livox pointcloud2 with XYZRTL (i.e. purely cartesian) points */
@@ -281,8 +281,8 @@ uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_n
   return published_packet;
 }
 
-/* for Livox pointcloud2 with XYZTPRRTL (i.e. cartesian +  spherical) points */
-uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packet_num,
+/* for Livox pointcloud2 with XYZTTPRRTL (i.e. cartesian +  spherical) points */
+uint32_t Lddc::PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t packet_num,
                                            uint8_t handle) {
   uint64_t timestamp = 0;
   uint64_t first_timestamp = 0;
@@ -297,10 +297,10 @@ uint32_t Lddc::PublishPointCloud2Xyztprrtl(LidarDataQueue *queue, uint32_t packe
   }
 
   sensor_msgs::msg::PointCloud2 cloud;
-  InitPointcloud2MsgHeaderXyztprrtl(cloud);
+  InitPointcloud2MsgHeaderXyzttprrtl(cloud);
   cloud.data.resize(packet_num * kMaxPointPerEthPacket *
-                    sizeof(LivoxPointXyztprrtl));
-  cloud.point_step = sizeof(LivoxPointXyztprrtl);
+                    sizeof(LivoxPointXyzttprrtl));
+  cloud.point_step = sizeof(LivoxPointXyzttprrtl);
 
   uint8_t *point_base = cloud.data.data();
   uint8_t data_source = lidar->data_src;
@@ -698,11 +698,11 @@ void Lddc::PollingLidarPointCloudData(uint8_t handle, LidarDevice *lidar) {
       PublishCustomPointcloud(p_queue, onetime_publish_packets, handle);
     } else if (kPclPxyziMsg == transfer_format_) {
       PublishPointcloudData(p_queue, onetime_publish_packets, handle);
-    } else if (kPointCloud2XyztprrtlMsg == transfer_format_ && lidar->config.coordinate==1){
-      PublishPointCloud2Xyztprrtl(p_queue, onetime_publish_packets, handle);
-    } else if (kPointCloud2XyztprrtlMsg == transfer_format_ && lidar->config.coordinate==0){
+    } else if (kPointCloud2XyzttprrtlMsg == transfer_format_ && lidar->config.coordinate==1){
+      PublishPointCloud2Xyzttprrtl(p_queue, onetime_publish_packets, handle);
+    } else if (kPointCloud2XyzttprrtlMsg == transfer_format_ && lidar->config.coordinate==0){
       RCLCPP_WARN_THROTTLE(cur_node_->get_logger(), *cur_node_->get_clock(), 1000,
-                           "xfer_format = Livox Pointcloud(XYZTPRRTL) (=4) but coordinate = cartesian (=0)." \
+                           "xfer_format = Livox Pointcloud(XYZTTPRRTL) (=4) but coordinate = cartesian (=0)." \
                            "This is not possible. Switching to xfer_format = Livox Pointcloud(XYZRTL) (=0)");
       PublishPointcloud2Xyzrtl(p_queue, onetime_publish_packets, handle);
     }
@@ -743,7 +743,7 @@ void Lddc::DistributeLidarData(void) {
 
 std::shared_ptr<rclcpp::PublisherBase> Lddc::CreatePublisher(uint8_t msg_type,
     std::string &topic_name, uint32_t queue_size) {
-    if (kPointCloud2XyzrtlMsg == msg_type || kPointCloud2XyztprrtlMsg == msg_type) {
+    if (kPointCloud2XyzrtlMsg == msg_type || kPointCloud2XyzttprrtlMsg == msg_type) {
       RCLCPP_INFO(cur_node_->get_logger(),
           "%s publish use PointCloud2 format", topic_name.c_str());
       return cur_node_->create_publisher<

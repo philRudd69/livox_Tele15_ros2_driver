@@ -132,8 +132,8 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
   if (data_src == kSourceRawLidar) {
     RCLCPP_INFO(this->get_logger(), "Data Source is raw lidar.");
 
-    if (kPointCloud2XyztprrtlMsg == xfer_format){
-      RCLCPP_INFO(this->get_logger(), "Transfer Format is publishing LivoxPointCloud(XYZTPRRTL)");
+    if (kPointCloud2XyzttprrtlMsg == xfer_format){
+      RCLCPP_INFO(this->get_logger(), "Transfer Format is publishing LivoxPointCloud(XYZTTPRRTL)");
     } else if (kPointCloud2XyzrtlMsg == xfer_format){
       RCLCPP_INFO(this->get_logger(), "Transfer Format is publishing Livox pointcloud2(PointXYZRTL)");
     } else if (kLivoxCustomMsg == xfer_format){

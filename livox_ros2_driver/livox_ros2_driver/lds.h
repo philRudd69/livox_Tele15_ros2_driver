@@ -70,7 +70,7 @@ const int kBdCodeSize = 15;
 
 const uint32_t kPointXYZRSize = 16;
 const uint32_t kPointXYZRTRSize = 18;
-const uint32_t kPointXYZTPRRTLSize = 34;
+const uint32_t kPointXYZTTPRRTLSize = 34;
 
 const double PI = 3.14159265358979323846;
 
@@ -218,11 +218,12 @@ typedef struct {
   float x;            /**< X axis, Unit:m */
   float y;            /**< Y axis, Unit:m */
   float z;            /**< Z axis, Unit:m */
+  uint32_t time_offset; /** point time offset from header time stamp, Unit:ns */
   float theta;        /**< Azimuth, horizontal angle in xy-plane, measured from positive x-axis counter-clockwise, Unit:rad */
   float phi;          /**< Elevation, vertical angle in yz-plane, measured from xy-plane upwards as positive, Unit:rad */
   float r;            /**< Range, radial distance, Unit:m */
   float reflectivity; /**< Reflectivity   */
-} LivoxPointXyztprr;
+} LivoxPointXyzttprr;
 
 typedef struct {
   float x;            /**< X axis, Unit:m */
@@ -244,7 +245,7 @@ typedef struct {
   float reflectivity; /**< Reflectivity   */
   uint8_t tag;        /**< Livox point tag   */
   uint8_t line;       /**< Laser line id     */
-} LivoxPointXyztprrtl;
+} LivoxPointXyzttprrtl;
 
 #pragma pack()
 
@@ -254,9 +255,7 @@ typedef uint8_t *(*PointConvertHandler)(uint8_t *point_buf, \
 
 typedef uint8_t *(*PointTimeConvertHandler)(uint8_t *point_buf, \
     LivoxEthPacket *eth_packet, ExtrinsicParameter &extrinsic, \
-    uint32_t line_num, \
-    uint32_t offset_time, \
-    uint32_t point_interval);
+    uint32_t line_num, uint32_t offset_time, uint32_t point_interval);
 
 const DataTypePointInfoPair data_type_info_pair_table[kMaxPointDataType] = {
     {100, 1318, sizeof(LivoxRawPoint), 1},
@@ -369,7 +368,7 @@ inline void RawPointConvert(LivoxPointXyzr *dst_point,
   dst_point->reflectivity = (float)raw_point->reflectivity;
 }
 
-inline void RawPointConvert(LivoxPointXyztprr *dst_point,
+inline void RawPointConvert(LivoxPointXyzttprr *dst_point,
                             LivoxSpherPoint *raw_point) {
   double radius = raw_point->depth / 1000.0;
   double theta = raw_point->theta / 100.0 / 180 * PI;
@@ -401,8 +400,8 @@ inline void RawPointConvert(LivoxPointXyzr *dst_point1,
   dst_point2->reflectivity = (float)raw_point->reflectivity2;
 }
 
-inline void RawPointConvert(LivoxPointXyztprr *dst_point1,
-                            LivoxPointXyztprr *dst_point2,
+inline void RawPointConvert(LivoxPointXyzttprr *dst_point1,
+                            LivoxPointXyzttprr *dst_point2,
                             LivoxDualExtendSpherPoint *raw_point) {
   double radius1 = raw_point->depth1 / 1000.0;
   double radius2 = raw_point->depth2 / 1000.0;
