@@ -108,6 +108,7 @@ class Lddc {
   double publish_frq_;
   uint32_t publish_period_ns_;
   std::string frame_id_;
+  uint64_t frame_num_;
 
   std::shared_ptr<rclcpp::PublisherBase>private_pub_[kMaxSourceLidar];
   std::shared_ptr<rclcpp::PublisherBase>global_pub_;

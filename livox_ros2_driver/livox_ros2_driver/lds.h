@@ -168,7 +168,7 @@ typedef struct {
   uint8_t handle;                    /**< Lidar access handle. */
   uint8_t data_src;                  /**< From raw lidar or livox file. */
   uint8_t raw_data_type;             /**< The data type in eth packaet */
-  bool data_is_pubulished;           /**< Indicate the data of lidar whether is
+  bool data_is_published;           /**< Indicate the data of lidar whether is
                                           pubulished. */
   volatile uint32_t packet_interval; /**< The time interval between packets
                                         of current lidar, unit:ns */
@@ -187,7 +187,7 @@ typedef struct {
 } LidarDevice;
 
 typedef struct {
-  uint32_t points_per_packet; /**< number of points every packet */
+  uint32_t points_per_packet; /**< number of points every packet Question: is this the number of distinct scanning directions or is it the acutal number of points including second returns? */
   uint32_t packet_length;     /**< length of raw ethenet packet unit:bytes */
   uint32_t raw_point_length;  /**< length of point uint:bytes */
   uint32_t echo_num;          /**< echo number of current data */
@@ -259,11 +259,11 @@ typedef uint8_t *(*PointTimeConvertHandler)(uint8_t *point_buf, \
 
 const DataTypePointInfoPair data_type_info_pair_table[kMaxPointDataType] = {
     {100, 1318, sizeof(LivoxRawPoint), 1},
-    {100, 918,  9,  1},
+    {100, 918,  9,  1},  /* points_per_packet; packet_length [byte]; raw_point_length [byte]; number of echos */
     {96,  1362, 14, 1},
     {96,  978,  9,  1},
     {48,  1362, sizeof(LivoxDualExtendRawPoint),   2},
-    {48,  786,  sizeof(LivoxDualExtendSpherPoint), 2},
+    {48,  786,  sizeof(LivoxDualExtendSpherPoint), 2},  /* this is the pointDatatype5 we are using for the extened point definition with cartesian and spherical coordinates */
     {1,   42,   sizeof(LivoxImuPoint), 1},
     {30,  1278, sizeof(LivoxTripleExtendRawPoint),   3},
     {30,  678,  sizeof(LivoxTripleExtendSpherPoint), 3}};

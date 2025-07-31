@@ -48,7 +48,8 @@ Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
       data_src_(data_src),
       output_type_(output_type),
       publish_frq_(frq),
-      frame_id_(frame_id) {
+      frame_id_(frame_id),
+      frame_num_(0) {
   publish_period_ns_ = kNsPerSecond / publish_frq_;
   lds_ = nullptr;
 #if 0
@@ -65,20 +66,28 @@ Lddc::~Lddc() {
 int32_t Lddc::GetPublishStartTime(LidarDevice *lidar, LidarDataQueue *queue,
                                   uint64_t *start_time,
                                   StoragePacket *storage_packet) {
+  /***
+   * this function seems to retreive a start_time stamp from the packets in the queue.
+   * But if there has been some packet-loss (see else-term) then the queue is emptied compeletely.
+   * The packet loss is detected by the timestamp in the packet, the tree cases seem to be:
+   * 1. packet came a little later (up to 1/4 of the period) than the full period boundary. use the lower period boundary as start_time. return 0 (false)
+   * 2. packet came a little too early, before the full period boundary. use the actual packet time-stamp as start-time. return 0 (false)
+   * 3. packet in queue is way too late, empty the queue without processing any of the packets. return -1 (true)
+   */
   QueuePrePop(queue, storage_packet);
   uint64_t timestamp =
       GetStoragePacketTimestamp(storage_packet, lidar->data_src);
-  uint32_t remaining_time = timestamp % publish_period_ns_;
-  uint32_t diff_time = publish_period_ns_ - remaining_time;
+  uint32_t remaining_time = timestamp % publish_period_ns_;  // abgelaufene zeit // publish_period_ns_ = 1*10^9ns / 10Hz = 1*10^8ns
+  uint32_t diff_time = publish_period_ns_ - remaining_time;  // noch verfügbare zeit
   /** Get start time, down to the period boundary */
-  if (diff_time > (publish_period_ns_ / 4)) {
+  if (diff_time > (publish_period_ns_ / 4)) {     // erste 75 millisekunden
     // RCLCPP_INFO(cur_node_->get_logger(), "0 : %u", diff_time);
     *start_time = timestamp - remaining_time;
     return 0;
-  } else if (diff_time <= lidar->packet_interval_max) {
+  } else if (diff_time <= lidar->packet_interval_max) { // ca. halbe millisekunde 200µs für Paket. ca 400µs für paket_interval_max 
     *start_time = timestamp;
     return 0;
-  } else {
+  } else {  /* hier sind wir im letzten viertel der frame-perioden zeit als 25ms */
     /** Skip some packets up to the period boundary*/
     // RCLCPP_INFO(cur_node_->get_logger(), "2 : %u", diff_time);
     do {
@@ -86,20 +95,21 @@ int32_t Lddc::GetPublishStartTime(LidarDevice *lidar, LidarDataQueue *queue,
         break;
       }
       QueuePopUpdate(queue); /* skip packet */
-      QueuePrePop(queue, storage_packet);
+      RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Skipping packet in GetPublishStartTime() routine.", frame_num_);
+      QueuePrePop(queue, storage_packet); /* what if the queue is empty here??? access-violation buffer overrun oder est stehen falsche daten drin. */
       uint32_t last_remaning_time = remaining_time;
       timestamp = GetStoragePacketTimestamp(storage_packet, lidar->data_src);
       remaining_time = timestamp % publish_period_ns_;
       /** Flip to another period */
-      if (last_remaning_time > remaining_time) {
-        // RCLCPP_INFO(cur_node_->get_logger(), "Flip to another period, exit");
+      if (last_remaning_time > remaining_time) { /* wir sind schon im nächsten Frame, denn die neue abgelaufene zeit ist jetzt kleiner als die alte abgelaufene zeit */
+        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Flip to next Frame, exit.", frame_num_);
         break;
       }
       diff_time = publish_period_ns_ - remaining_time;
-    } while (diff_time > lidar->packet_interval);
+    } while (diff_time > lidar->packet_interval); /* queue wird geleert bis ... ACHTUNG, hier ist die Bedingung leicht anders als in Zeile 86*/
 
     /* the remaning packets in queue maybe not enough after skip */
-    return -1;
+    return -1;  // return true
   }
 }
 
@@ -217,11 +227,11 @@ uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_n
     timestamp = GetStoragePacketTimestamp(&storage_packet, data_source);
     int64_t packet_gap = timestamp - last_timestamp;
     if ((packet_gap > lidar->packet_interval_max) &&
-        lidar->data_is_pubulished) {
-      // RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle,
-      //     packet_gap);
+        lidar->data_is_published) {
+      // RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle, packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
+        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
         ZeroPointDataOfStoragePacket(&storage_packet);
         is_zero_packet = 1;
       }
@@ -267,32 +277,43 @@ uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_n
       <sensor_msgs::msg::PointCloud2>>(GetCurrentPublisher(handle));
   if (kOutputToRos == output_type_) {
     publisher->publish(cloud);
+    ++frame_num_;
   } else {
 #if 0    
     if (bag_) {
       bag_->write(p_publisher->getTopic(), rclcpp::Time(timestamp),
                   cloud);
+      ++frame_num_;
     }
 #endif    
   }
-  if (!lidar->data_is_pubulished) {
-    lidar->data_is_pubulished = true;
+  if (!lidar->data_is_published) {
+    lidar->data_is_published = true;
   }
   return published_packet;
 }
 
 /* for Livox pointcloud2 with XYZTTPRRTL (i.e. cartesian +  spherical) points */
 uint32_t Lddc::PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t packet_num,
-                                           uint8_t handle) {
+                                            uint8_t handle) {
+/***
+ * queue: queue of udp packets coming from the sensor
+ * packet_num: number of packets that ideally form one pointcloud frame. 
+ *             "ideally", because packets can get lost or are skipped by the following algorithm.
+ *             E.g. 500 for Tele-15 sensor in dual return mode with spherical coordinates (i.e. data_type = 5).
+ * handle: integer identifying the lidar
+ */
   uint64_t timestamp = 0;
   uint64_t first_timestamp = 0;
   uint64_t last_timestamp = 0;
   uint32_t published_packet = 0;
+  // RCLCPP_INFO(cur_node_->get_logger(), "packet_num = %i", packet_num);
+  // RCLCPP_INFO(cur_node_->get_logger(), "Frame No. %i", frame_num_);
 
   StoragePacket storage_packet;
   LidarDevice *lidar = &lds_->lidars_[handle];
   if (GetPublishStartTime(lidar, queue, &last_timestamp, &storage_packet)) {
-    /* the remaning packets in queue maybe not enough after skip */
+    /* the remaning packets in queue migth be not enough after skip */
     return 0;
   }
 
@@ -315,14 +336,14 @@ uint32_t Lddc::PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t pack
         reinterpret_cast<LivoxEthPacket *>(storage_packet.raw_data);
     timestamp = GetStoragePacketTimestamp(&storage_packet, data_source);
     int64_t packet_gap = timestamp - last_timestamp;
-    if ((packet_gap > lidar->packet_interval_max) &&
-        lidar->data_is_pubulished) {
-      // RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle,
-      //     packet_gap);
+    if ((packet_gap > lidar->packet_interval_max) &&  /* time difference to previous packet too large. Assume UDP packet(s) was lost. */
+        lidar->data_is_published) {
+      // RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle, packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
-        ZeroPointDataOfStoragePacket(&storage_packet);
-        is_zero_packet = 1;
+        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
+        ZeroPointDataOfStoragePacket(&storage_packet);  /* generate dummy-points at (0,0,0) */
+        is_zero_packet = 1; /* 1 = true */
       }
     }
     /** Use the first packet timestamp as pointcloud2 msg timestamp */
@@ -353,10 +374,10 @@ uint32_t Lddc::PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t pack
           lidar->extrinsic_parameter, line_num);
     }
 
-    if (!is_zero_packet) {
+    if (!is_zero_packet) { /* wenn ein Zero-Paket in die Point cloud geschrieben wird, wird die Queue nicht gepoppt, stattdessen in der nächsten Loop-iteration nochmal prozessiert. */
       QueuePopUpdate(queue);
     } else {
-      is_zero_packet = 0;
+      is_zero_packet = 0; /* 0 = false */
     }
     cloud.width += single_point_num;
     ++published_packet;
@@ -371,16 +392,18 @@ uint32_t Lddc::PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t pack
       <sensor_msgs::msg::PointCloud2>>(GetCurrentPublisher(handle));
   if (kOutputToRos == output_type_) {
     publisher->publish(cloud);
+    ++frame_num_;
   } else {
 #if 0    
     if (bag_) {
       bag_->write(p_publisher->getTopic(), rclcpp::Time(timestamp),
                   cloud);
+      ++frame_num_;
     }
 #endif    
   }
-  if (!lidar->data_is_pubulished) {
-    lidar->data_is_pubulished = true;
+  if (!lidar->data_is_published) {
+    lidar->data_is_published = true;
   }
   return published_packet;
 }
@@ -430,10 +453,11 @@ uint32_t Lddc::PublishPointcloudData(LidarDataQueue *queue, uint32_t packet_num,
     timestamp = GetStoragePacketTimestamp(&storage_packet, data_source);
     int64_t packet_gap = timestamp - last_timestamp;
     if ((packet_gap > lidar->packet_interval_max) &&
-        lidar->data_is_pubulished) {
+        lidar->data_is_published) {
       //RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle, packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
+        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
         ZeroPointDataOfStoragePacket(&storage_packet);
         is_zero_packet = 1;
       }
@@ -478,16 +502,18 @@ uint32_t Lddc::PublishPointcloudData(LidarDataQueue *queue, uint32_t packet_num,
     sensor_msgs::msg::PointCloud2 cloud_ros;
     pcl::toROSMsg(cloud,cloud_ros);
     publisher->publish(cloud_ros);
+    ++frame_num_;
   } else {
 #if 0    
     if (bag_) {
       bag_->write(p_publisher->getTopic(), rclcpp::Time(timestamp),
                   cloud);
+      ++frame_num_;
     }
 #endif    
   }
-  if (!lidar->data_is_pubulished) {
-    lidar->data_is_pubulished = true;
+  if (!lidar->data_is_published) {
+    lidar->data_is_published = true;
   }
   return published_packet;
 }
@@ -550,11 +576,12 @@ uint32_t Lddc::PublishCustomPointcloud(LidarDataQueue *queue,
     timestamp = GetStoragePacketTimestamp(&storage_packet, data_source);
     int64_t packet_gap = timestamp - last_timestamp;
     if ((packet_gap > lidar->packet_interval_max) &&
-        lidar->data_is_pubulished) {
+        lidar->data_is_published) {
       // RCLCPP_INFO(this->get_logger(), "Lidar[%d] packet time interval is %ldns", handle,
       // packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
+        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
         ZeroPointDataOfStoragePacket(&storage_packet);
         is_zero_packet = 1;
       }
@@ -606,17 +633,19 @@ uint32_t Lddc::PublishCustomPointcloud(LidarDataQueue *queue,
       <livox_interfaces::msg::CustomMsg>>(GetCurrentPublisher(handle));  
   if (kOutputToRos == output_type_) {
     publisher->publish(livox_msg);
+    ++frame_num_;
   } else {
 #if 0    
     if (bag_) {
       bag_->write(p_publisher->getTopic(), rclcpp::Time(timestamp),
           livox_msg);
+      ++frame_num_;
     }
 #endif    
   }
 
-  if (!lidar->data_is_pubulished) {
-    lidar->data_is_pubulished = true;
+  if (!lidar->data_is_published) {
+    lidar->data_is_published = true;
   }
   return published_packet;
 }

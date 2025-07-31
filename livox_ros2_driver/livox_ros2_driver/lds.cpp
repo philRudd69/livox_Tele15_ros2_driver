@@ -660,6 +660,9 @@ PointTimeConvertHandler GetTimeConvertHandler(uint8_t data_type) {
 }
 
 void ZeroPointDataOfStoragePacket(StoragePacket* storage_packet) {
+/***
+ * function that sets all information within storage_packet to 0.
+ */
   LivoxEthPacket *raw_packet =
       reinterpret_cast<LivoxEthPacket *>(storage_packet->raw_data);
   uint32_t point_length = GetPointLen(raw_packet->data_type);
@@ -698,7 +701,7 @@ void Lds::ResetLidar(LidarDevice *lidar, uint8_t data_src) {
   /** unallocated state */
   lidar->handle = kMaxSourceLidar;
   lidar->data_src = data_src;
-  lidar->data_is_pubulished = false;
+  lidar->data_is_published = false;
   lidar->connect_state = kConnectStateOff;
   lidar->raw_data_type = 0xFF;
 }
