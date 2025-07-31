@@ -1,8 +1,9 @@
 import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-import launch
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+
 
 ################### user configure parameters for ros2 start ###################
 xfer_format   = 4    # 0-LivoxPointcloud2(PointXYZRTL), 1-customized pointcloud format, 2-StandardPointcloud2(PointXYZI), 4-LivoxPointcloud2(PointXYZTPRRTL)
@@ -14,42 +15,56 @@ frame_id      = 'livox_frame'
 lvx_file_path = '/home/livox/livox_test.lvx'
 cmdline_bd_code = 'livox0000000001'
 
+sensor_config = 'livox_lidar_config.json'
+rviz_config = 'livox_lidar.rviz'
+
 cur_path = os.path.split(os.path.realpath(__file__))[0] + '/'
 cur_config_path = cur_path + '../config'
-rviz_config_path = os.path.join(cur_config_path, 'livox_lidar.rviz')
-user_config_path = os.path.join(cur_config_path, 'livox_lidar_config.json')
 ################### user configure parameters for ros2 end #####################
-
-livox_ros2_params = [
-    {"xfer_format": xfer_format},
-    {"multi_topic": multi_topic},
-    {"data_src": data_src},
-    {"publish_freq": publish_freq},
-    {"output_data_type": output_type},
-    {"frame_id": frame_id},
-    {"lvx_file_path": lvx_file_path},
-    {"user_config_path": user_config_path},
-    {"cmdline_input_bd_code": cmdline_bd_code}
-]
 
 
 def generate_launch_description():
+    
+    livox_ros2_parameters = [
+        DeclareLaunchArgument('xfer_format', default_value=str(xfer_format)),
+        DeclareLaunchArgument('multi_topic', default_value=str(multi_topic)),
+        DeclareLaunchArgument('data_src', default_value=str(data_src)),
+        DeclareLaunchArgument('publish_freq', default_value=str(publish_freq)),
+        DeclareLaunchArgument('output_data_type', default_value=str(output_type)),
+        DeclareLaunchArgument('frame_id', default_value=frame_id),
+        DeclareLaunchArgument('lvx_file_path', default_value=lvx_file_path),
+        DeclareLaunchArgument('cmdline_input_bd_code', default_value=cmdline_bd_code),
+        DeclareLaunchArgument('user_config_path', default_value=str(os.path.join(cur_config_path, sensor_config))),
+        DeclareLaunchArgument('rviz_config_path', default_value=str(os.path.join(cur_config_path, rviz_config)))
+    ]
+
     livox_driver = Node(
         package='livox_ros2_driver',
         executable='livox_ros2_driver_node',
         name='livox_lidar_publisher',
         output='screen',
-        parameters=livox_ros2_params
+        parameters=[
+            {"xfer_format": LaunchConfiguration('xfer_format')},
+            {"multi_topic": LaunchConfiguration('multi_topic')},
+            {"data_src": LaunchConfiguration('data_src')},
+            {"publish_freq": LaunchConfiguration('publish_freq')},
+            {"output_data_type": LaunchConfiguration('output_data_type')},
+            {"frame_id": LaunchConfiguration('frame_id')},
+            {"lvx_file_path": LaunchConfiguration('lvx_file_path')},
+            {"user_config_path": LaunchConfiguration('user_config_path')},
+            {"cmdline_input_bd_code": LaunchConfiguration('cmdline_input_bd_code')}
+        ]
         )
 
     livox_rviz = Node(
             package='rviz2',
             executable='rviz2',
             output='screen',
-            arguments=['--display-config', rviz_config_path]
+            arguments=['--display-config', LaunchConfiguration('rviz_config_path')]
         )
 
     return LaunchDescription([
+        *livox_ros2_parameters,
         livox_driver,
         livox_rviz,
         # launch.actions.RegisterEventHandler(
