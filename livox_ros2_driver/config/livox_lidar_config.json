@@ -11,12 +11,11 @@
             "enable_high_sensitivity": true
         }
     ],
-	
     "timesync_config": {
         "enable_timesync": false,
         "device_name": "/dev/ttyUSB0",
         "comm_device_type": 0,
         "baudrate_index": 2,
-        "parity_index": 0     
+        "parity_index": 0
     }
 }
