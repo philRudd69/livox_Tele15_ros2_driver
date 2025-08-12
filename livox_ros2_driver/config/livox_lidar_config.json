@@ -3,7 +3,7 @@
         {
             "broadcast_code": "1PQDLCQ00139691",
             "enable_connect": true,
-            "enable_fan": false,
+            "enable_fan": true,
             "return_mode": 2,
             "coordinate": 1,
             "imu_rate": 0,
