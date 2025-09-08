@@ -7,7 +7,7 @@ from launch.substitutions import LaunchConfiguration
 
 ################### user configure parameters for ros2 start ###################
 xfer_format   = 4    # 0-LivoxPointcloud2(PointXYZRTL), 1-customized pointcloud format, 2-StandardPointcloud2(PointXYZI), 4-LivoxPointcloud2(PointXYZTPRRTL)
-multi_topic   = 1    # 0-All LiDARs share the same topic, 1-One LiDAR one topic
+multi_topic   = 0    # 0-All LiDARs share the same topic, 1-One LiDAR one topic
 data_src      = 0    # 0-lidar,1-hub
 publish_freq  = 10.0 # freqency of publish,1.0,2.0,5.0,10.0,etc
 output_type   = 0    # 0-Output to ROS, 1-Output to ROS bag file
@@ -43,6 +43,7 @@ def generate_launch_description():
         executable='livox_ros2_driver_node',
         name='livox_lidar_publisher',
         output='screen',
+        #prefix=['valgrind --leak-check=full --show-leak-kinds=all'],
         parameters=[
             {"xfer_format": LaunchConfiguration('xfer_format')},
             {"multi_topic": LaunchConfiguration('multi_topic')},

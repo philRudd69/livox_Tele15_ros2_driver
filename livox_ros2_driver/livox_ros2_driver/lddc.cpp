@@ -95,7 +95,7 @@ int32_t Lddc::GetPublishStartTime(LidarDevice *lidar, LidarDataQueue *queue,
         break;
       }
       QueuePopUpdate(queue); /* skip packet */
-      RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Skipping packet in GetPublishStartTime() routine.", frame_num_);
+      RCLCPP_DEBUG(cur_node_->get_logger(), "Frame %i: Skipping packet in GetPublishStartTime() routine.", frame_num_);
       QueuePrePop(queue, storage_packet); /* what if the queue is empty here??? access-violation buffer overrun oder est stehen falsche daten drin. */
       uint32_t last_remaning_time = remaining_time;
       timestamp = GetStoragePacketTimestamp(storage_packet, lidar->data_src);
@@ -231,7 +231,7 @@ uint32_t Lddc::PublishPointcloud2Xyzrtl(LidarDataQueue *queue, uint32_t packet_n
       // RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle, packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
-        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
+        RCLCPP_DEBUG(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
         ZeroPointDataOfStoragePacket(&storage_packet);
         is_zero_packet = 1;
       }
@@ -341,7 +341,7 @@ uint32_t Lddc::PublishPointCloud2Xyzttprrtl(LidarDataQueue *queue, uint32_t pack
       // RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle, packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
-        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
+        RCLCPP_DEBUG(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
         ZeroPointDataOfStoragePacket(&storage_packet);  /* generate dummy-points at (0,0,0) */
         is_zero_packet = 1; /* 1 = true */
       }
@@ -457,7 +457,7 @@ uint32_t Lddc::PublishPointcloudData(LidarDataQueue *queue, uint32_t packet_num,
       //RCLCPP_INFO(cur_node_->get_logger(), "Lidar[%d] packet time interval is %ldns", handle, packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
-        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
+        RCLCPP_DEBUG(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
         ZeroPointDataOfStoragePacket(&storage_packet);
         is_zero_packet = 1;
       }
@@ -581,7 +581,7 @@ uint32_t Lddc::PublishCustomPointcloud(LidarDataQueue *queue,
       // packet_gap);
       if (kSourceLvxFile != data_source) {
         timestamp = last_timestamp + lidar->packet_interval;
-        RCLCPP_INFO(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
+        RCLCPP_DEBUG(cur_node_->get_logger(), "Frame %i: Time difference of packet no. %i too large to previous packet. Generating dummy packet with points at (0,0,0).", frame_num_, published_packet);
         ZeroPointDataOfStoragePacket(&storage_packet);
         is_zero_packet = 1;
       }

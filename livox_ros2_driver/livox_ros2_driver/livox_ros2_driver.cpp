@@ -61,7 +61,7 @@ namespace livox_ros
 LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
 : Node("livox_driver_node", node_options)
 {
-  rcutils_ret_t set_log_ret = rcutils_logging_set_logger_level(this->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
+  rcutils_ret_t set_log_ret = rcutils_logging_set_logger_level(this->get_logger().get_name(), RCUTILS_LOG_SEVERITY_INFO);
   if(set_log_ret != RCUTILS_RET_OK){
     RCLCPP_ERROR(this->get_logger(), "Error Setting severity: %s", rcutils_get_error_string().str);
     rcutils_reset_error();
