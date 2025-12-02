@@ -420,7 +420,7 @@ inline void RawPointConvert(LivoxPointXyzttprr *dst_point1,
   dst_point2->z = radius2 * cos(theta);
   dst_point2->theta = phi;            /* msg definition swaps theta and phi*/
   dst_point2->phi = PI / 2.0 - theta; /* also the elevation is originally measured from the upright z-axis.*/
-  dst_point2->r = radius1;
+  dst_point2->r = radius2;
   dst_point2->reflectivity = (float)raw_point->reflectivity2;
 }
 
